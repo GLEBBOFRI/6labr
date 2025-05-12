@@ -1,9 +1,7 @@
 package org.example.network;
-
 import java.io.Serializable;
 
 public class Response implements Serializable {
-
     private static final long serialVersionUID = 82038482L;
 
     private final String message;

@@ -13,12 +13,10 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.logging.FileHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
-import java.util.logging.FileHandler;
 
 public class ServerMain {
     private static final Logger logger = Logger.getLogger(ServerMain.class.getName());
@@ -26,14 +24,12 @@ public class ServerMain {
     private final CollectionManager collectionManager;
     private final Map<String, Command> commands;
     private volatile boolean isRunning;
-    private ExecutorService threadPool;
 
     public ServerMain(int port, CollectionManager collectionManager, Map<String, Command> commands) {
         this.port = port;
         this.collectionManager = collectionManager;
         this.commands = commands;
         this.isRunning = true;
-        this.threadPool = Executors.newCachedThreadPool();
         setupLogger();
     }
 
@@ -43,7 +39,7 @@ public class ServerMain {
             SimpleFormatter formatter = new SimpleFormatter();
             fileHandler.setFormatter(formatter);
             logger.addHandler(fileHandler);
-            logger.setLevel(Level.INFO); // Установи уровень логирования (INFO, WARNING, SEVERE и т.д.)
+            logger.setLevel(Level.INFO);
         } catch (IOException e) {
             System.err.println("Error setting up logger: " + e.getMessage());
         }
@@ -75,23 +71,57 @@ public class ServerMain {
 
             while (isRunning) {
                 Socket clientSocket = serverSocket.accept();
-                logger.info("Client connected: " + clientSocket.getInetAddress().getHostAddress());
-                threadPool.execute(new ClientHandler(clientSocket));
+                logger.info("Client connected: " + clientSocket.getInetAddress().getHostAddress() + ":" + clientSocket.getPort());
+                handleClient(clientSocket); // Обрабатываем клиента в основном потоке
             }
         } catch (IOException e) {
             if (isRunning) {
                 logger.log(Level.SEVERE, "Server error: " + e.getMessage(), e);
             }
         } finally {
-            threadPool.shutdown();
             logger.info("Server stopped");
         }
     }
 
     public void stop() {
         isRunning = false;
-        threadPool.shutdownNow();
         logger.info("Server is shutting down");
+    }
+
+    private void handleClient(Socket clientSocket) {
+        try (ObjectInputStream in = new ObjectInputStream(clientSocket.getInputStream());
+             ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream())) {
+
+            Request request;
+            while ((request = (Request) in.readObject()) != null) {
+                logger.info("Received request from " + clientSocket.getInetAddress().getHostAddress() + ":" + clientSocket.getPort() + ": " + request);
+                Command command = commands.get(request.getCommandName().toLowerCase());
+
+                if (command == null) {
+                    Response response = new Response("Command not found");
+                    out.writeObject(response);
+                    logger.warning("Command not found from " + clientSocket.getInetAddress().getHostAddress() + ":" + clientSocket.getPort() + ": " + request.getCommandName());
+                } else {
+                    Response response = command.execute(request);
+                    out.writeObject(response);
+                    logger.info("Executed command '" + request.getCommandName() + "' for " + clientSocket.getInetAddress().getHostAddress() + ":" + clientSocket.getPort() + ", sent response: " + response);
+                }
+                out.flush();
+            }
+            logger.info("Client " + clientSocket.getInetAddress().getHostAddress() + ":" + clientSocket.getPort() + " disconnected.");
+
+        } catch (ClassNotFoundException e) {
+            logger.log(Level.WARNING, "Invalid request format from " + clientSocket.getInetAddress().getHostAddress() + ":" + clientSocket.getPort() + ": " + e.getMessage());
+        } catch (IOException e) {
+            logger.log(Level.WARNING, "Client connection error with " + clientSocket.getInetAddress().getHostAddress() + ":" + clientSocket.getPort() + ": " + e.getMessage());
+        } finally {
+            try {
+                clientSocket.close();
+                logger.log(Level.INFO, "Socket closed for " + clientSocket.getInetAddress().getHostAddress() + ":" + clientSocket.getPort());
+            } catch (IOException e) {
+                logger.log(Level.SEVERE, "Error closing client socket for " + clientSocket.getInetAddress().getHostAddress() + ":" + clientSocket.getPort() + ": " + e.getMessage(), e);
+            }
+        }
     }
 
     private static void registerCommands(Map<String, Command> commands,
@@ -111,62 +141,5 @@ public class ServerMain {
                 new AverageOfMetersAboveSeaLevel(collectionManager));
         commands.put("filter_starts_with_name",
                 new FilterStartsWithName(collectionManager));
-    }
-
-    private class ClientHandler implements Runnable {
-        private final Socket clientSocket;
-        private final Logger clientLogger;
-
-        public ClientHandler(Socket socket) {
-            this.clientSocket = socket;
-            this.clientLogger = Logger.getLogger(ClientHandler.class.getName() + "-" + socket.getInetAddress().getHostAddress() + ":" + socket.getPort());
-            setupClientLogger();
-        }
-
-        private void setupClientLogger() {
-            try {
-                FileHandler fileHandler = new FileHandler("client-" + clientSocket.getInetAddress().getHostAddress() + "-" + clientSocket.getPort() + ".log", true);
-                SimpleFormatter formatter = new SimpleFormatter();
-                fileHandler.setFormatter(formatter);
-                clientLogger.addHandler(fileHandler);
-                clientLogger.setLevel(Level.INFO);
-            } catch (IOException e) {
-                System.err.println("Error setting up logger for client " + clientSocket.getInetAddress().getHostAddress() + ": " + e.getMessage());
-            }
-        }
-
-        @Override
-        public void run() {
-            try (ObjectInputStream in = new ObjectInputStream(clientSocket.getInputStream());
-                 ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream())) {
-
-                Request request = (Request) in.readObject();
-                clientLogger.info("Received request: " + request);
-                Command command = commands.get(request.getCommandName().toLowerCase());
-
-                if (command == null) {
-                    Response response = new Response("Command not found");
-                    out.writeObject(response);
-                    clientLogger.warning("Command not found: " + request.getCommandName());
-                } else {
-                    Response response = command.execute(request);
-                    out.writeObject(response);
-                    clientLogger.info("Executed command: " + request.getCommandName() + ", sent response: " + response);
-                }
-                out.flush();
-
-            } catch (ClassNotFoundException e) {
-                clientLogger.log(Level.WARNING, "Invalid request format: " + e.getMessage());
-            } catch (IOException e) {
-                clientLogger.log(Level.WARNING, "Client connection error: " + e.getMessage());
-            } finally {
-                try {
-                    clientSocket.close();
-                    clientLogger.info("Connection closed with " + clientSocket.getInetAddress().getHostAddress());
-                } catch (IOException e) {
-                    clientLogger.log(Level.SEVERE, "Error closing client socket: " + e.getMessage(), e);
-                }
-            }
-        }
     }
 }

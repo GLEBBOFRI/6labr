@@ -1,7 +1,7 @@
 package org.example.network;
 
 import java.io.Serializable;
-import java.util.Arrays; // Для корректного вывода массива в toString
+import java.util.Arrays;
 
 public class Request implements Serializable {
 

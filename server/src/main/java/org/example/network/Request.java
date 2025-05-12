@@ -9,6 +9,7 @@ public class Request implements Serializable {
 
     private final String commandName;
     private final Object arguments;
+
     public Request(String commandName, Object arguments) {
         this.commandName = commandName;
         this.arguments = arguments;
