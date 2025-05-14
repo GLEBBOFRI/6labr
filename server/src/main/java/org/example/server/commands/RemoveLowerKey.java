@@ -16,16 +16,16 @@ public class RemoveLowerKey extends Command {
     public Response execute(Request request) {
         String arg = (String) request.getArguments();
         if (arg == null || arg.isEmpty()) {
-            return new Response("Не указан ключ.");
+            return new Response("а меньше какого ключа удалять-то будем?");
         }
         try {
             int key = Integer.parseInt(arg);
             int removedCount = collectionManager.removeLowerKey(key);
-            return new Response("Удалено " + removedCount + " элементов с ключом, меньшим чем " + key + ".");
+            return new Response("удалено " + removedCount + " элементов с ключом меньше чем " + key);
         } catch (NumberFormatException e) {
-            return new Response("Неверный формат ключа. Ожидается целое число.");
+            return new Response("ты хоть ключ-то правильно введи, бестолочь");
         } catch (Exception e) {
-            return new Response("Ошибка при выполнении команды 'remove_lower_key': " + e.getMessage());
+            return new Response("что-то сломалось при удалении маленьких ключей: " + e.getMessage());
         }
     }
 }

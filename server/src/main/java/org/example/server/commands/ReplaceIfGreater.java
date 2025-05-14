@@ -19,39 +19,39 @@ public class ReplaceIfGreater extends Command {
         try {
             Object[] args = (Object[]) request.getArguments();
             if (args == null || args.length < 2) {
-                return new Response("Неверное количество аргументов для команды 'replace_if_greater'. Ожидается: key City");
+                return new Response("ты что-то недоговариваешь, нужны ключ и город");
             }
 
             Integer key;
             try {
                 key = Integer.parseInt((String) args[0]);
             } catch (NumberFormatException e) {
-                return new Response("Неверный формат ключа. Ожидается целое число.");
+                return new Response("ключ-то числом будь добр введи");
             }
 
             City newCity;
             try {
                 newCity = (City) args[1];
             } catch (ClassCastException e) {
-                return new Response("Неверный формат объекта City.");
+                return new Response("а город-то где? ты что-то не то передал");
             }
 
             newCity.validate();
             if (!collectionManager.containsKey(key)) {
-                return new Response("Элемента с ключом " + key + " не существует.");
+                return new Response("нет такого ключа " + key + ", куда ты собрался заменять?");
             }
             if (collectionManager.replaceIfGreater(key, newCity)) {
-                return new Response("Элемент с ключом " + key + " успешно заменен, так как новый город больше.");
+                return new Response("элемент с ключом " + key + " заменен, этот город круче");
             } else {
-                return new Response("Элемент с ключом " + key + " не был заменен, так как новый город не больше.");
+                return new Response("не стали менять, твой новый город так себе");
             }
 
         } catch (ValidationException e) {
-            return new Response("Ошибка валидации города: " + e.getMessage());
+            return new Response("город у тебя какой-то бракованный: " + e.getMessage());
         } catch (ClassCastException e) {
-            return new Response("Неверный формат аргументов для команды 'replace_if_greater'. Ожидается: key City");
+            return new Response("ты что-то перепутал с типами аргументов");
         } catch (Exception e) {
-            return new Response("Ошибка при выполнении команды 'replace_if_greater': " + e.getMessage());
+            return new Response("ой, не получилось заменить, что-то сломалось: " + e.getMessage());
         }
     }
 }

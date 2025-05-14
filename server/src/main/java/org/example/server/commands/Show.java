@@ -11,7 +11,7 @@ public class Show extends Command {
     private final CollectionManager collectionManager;
 
     public Show(CollectionManager collectionManager) {
-        super("show", "show all elements");
+        super("show", "вывести в стандартный поток вывода все элементы коллекции");
         this.collectionManager = collectionManager;
     }
 
@@ -19,10 +19,10 @@ public class Show extends Command {
     public Response execute(Request request) {
         Collection<City> cities = collectionManager.getSortedCollection();
         if (cities.isEmpty()) {
-            return new Response("Коллекция пуста.");
+            return new Response("да тут пусто, показывать-то нечего");
         } else {
             String data = cities.stream().map(City::toString).collect(Collectors.joining("\n"));
-            return new Response("Элементы коллекции:\n" + data);
+            return new Response("элементы коллекции:\n" + data);
         }
     }
 }

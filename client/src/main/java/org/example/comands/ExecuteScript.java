@@ -23,12 +23,12 @@ public class ExecuteScript extends Command {
     @Override
     public void execute(String[] args) throws CommandExecutionError {
         if (args.length != 1) {
-            throw new CommandExecutionError("Использование: execute_script <имя_файла>");
+            throw new CommandExecutionError("использование: execute_script <имя_файла>");
         }
 
         File scriptFile = new File(args[0]);
         if (!scriptFile.exists() || !scriptFile.isFile()) {
-            throw new CommandExecutionError("Файл не найден или не является файлом: " + args[0]);
+            throw new CommandExecutionError("файл не найден или не является файлом: " + args[0]);
         }
 
         try (Scanner scanner = new Scanner(scriptFile)) {
@@ -40,7 +40,7 @@ public class ExecuteScript extends Command {
                     String[] commandArgs = parts.length > 1 ? parts[1].split("\\s+") : new String[0];
 
                     if (commandName.equalsIgnoreCase("execute_script")) {
-                        console.writeln("Обнаружена рекурсивная попытка вызова execute_script. Иди отсюда, тебя тут не любят!");
+                        console.writeln("обнаружена рекурсивная попытка вызова execute_script иди отсюда, тебя тут не любят!");
                         continue;
                     }
 
@@ -49,16 +49,16 @@ public class ExecuteScript extends Command {
                         try {
                             command.execute(commandArgs);
                         } catch (CommandExecutionError e) {
-                            console.writeln("Ошибка при выполнении команды '" + commandName + "' из скрипта: " + e.getMessage());
+                            console.writeln("ошибка при выполнении команды '" + commandName + "' из скрипта: " + e.getMessage());
                         }
                     } else {
-                        console.writeln("Команда '" + commandName + "', найденная в скрипте, написана рукожопом. Переделать!");
+                        console.writeln("команда '" + commandName + "', найденная в скрипте, написана рукожопом. Переделать!");
                     }
                 }
             }
-            console.writeln("Выполнение скрипта '" + args[0] + "' завершено.");
+            console.writeln("выполнение скрипта '" + args[0] + "' завершено твои миллион городов загрузились в коллекцию!");
         } catch (Exception e) {
-            throw new CommandExecutionError("Произошла ошибка при чтении или выполнении скрипта: " + e.getMessage());
+            throw new CommandExecutionError("произошла ошибка при чтении или выполнении скрипта: " + e.getMessage());
         }
     }
 }

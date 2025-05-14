@@ -16,16 +16,16 @@ public class RemoveGreaterKey extends Command {
     public Response execute(Request request) {
         String arg = (String) request.getArguments();
         if (arg == null || arg.isEmpty()) {
-            return new Response("Не указан ключ.");
+            return new Response("ключ-то где?");
         }
         try {
             int key = Integer.parseInt(arg);
             int removedCount = collectionManager.removeGreaterKey(key);
-            return new Response("Удалено " + removedCount + " элементов с ключом, большим чем " + key + ".");
+            return new Response("удалено " + removedCount + " элементов с ключом больше чем " + key);
         } catch (NumberFormatException e) {
-            return new Response("Неверный формат ключа. Ожидается целое число.");
+            return new Response("ты ключ-то числом введи, балбес");
         } catch (Exception e) {
-            return new Response("Ошибка при выполнении команды 'remove_greater_key': " + e.getMessage());
+            return new Response("что-то пошло не так при удалении больших ключей: " + e.getMessage());
         }
     }
 }

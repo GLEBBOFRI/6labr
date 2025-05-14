@@ -19,19 +19,19 @@ public class RemoveAllByStandardOfLiving extends Command {
     public Response execute(Request request) {
         String arg = (String) request.getArguments();
         if (arg == null || arg.isEmpty()) {
-            return new Response("Не указан StandardOfLiving для удаления.");
+            return new Response("а уровень жизни-то где?");
         }
         try {
             StandardOfLiving standard = StandardOfLiving.valueOf(arg.toUpperCase());
             int removedCount = collectionManager.removeAllByStandardOfLiving(standard);
-            return new Response("Удалено " + removedCount + " элементов с StandardOfLiving " + standard + ".");
+            return new Response("удалено " + removedCount + " элементов с уровнем жизни " + standard);
         } catch (IllegalArgumentException e) {
             String availableValues = Arrays.stream(StandardOfLiving.values())
                     .map(Enum::toString)
                     .collect(Collectors.joining(", "));
-            return new Response("Неверный формат StandardOfLiving. Доступные значения: " + availableValues);
+            return new Response("ты такой уровень жизни вообще выдумал, вот доступные: " + availableValues);
         } catch (Exception e) {
-            return new Response("Ошибка при выполнении команды 'remove_all_by_standard_of_living': " + e.getMessage());
+            return new Response("что-то сломалось при удалении по уровню жизни: " + e.getMessage());
         }
     }
 }

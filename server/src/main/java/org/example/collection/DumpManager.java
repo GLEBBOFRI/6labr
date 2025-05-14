@@ -42,7 +42,7 @@ public class DumpManager {
         Files.writeString(Path.of(filePath), jsonString);
     }
 
-    // venom для преобразования JSON в список городов
+    // метод для преобразования JSON в список городов
     public static List<City> jsonFileToCityList(String filePath) throws IOException {
         JsonElement jsonElement = readJson(filePath);
         List<City> cityList = new ArrayList<>();
@@ -50,7 +50,7 @@ public class DumpManager {
 
         if (jsonElement == null || jsonElement.isJsonNull()) {
             System.out.println("файл пустой введи insert чтобы добавить новый город");
-            return cityList; // Возвращаем пустой список
+            return cityList;
         }
 
         if (jsonElement.isJsonArray()) {
@@ -73,7 +73,7 @@ public class DumpManager {
         return cityList;
     }
 
-    // venom для сохранения коллекции в файл JSON
+    // метод для сохранения коллекции в файл JSON
     public static void CollectionToJsonFile(Collection collection, String filePath) throws IOException {
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
         try {

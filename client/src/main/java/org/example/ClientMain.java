@@ -1,29 +1,35 @@
 package org.example;
 
+import org.example.comands.Command;
 import org.example.comands.*;
+import org.example.network.Request;
+import org.example.network.Response;
 import org.example.consol.Console;
 import org.example.consol.StandartConsole;
 import org.example.exceptions.CommandExecutionError;
 import org.example.exceptions.CommandNotFoundException;
-import org.example.network.Request;
-import org.example.network.Response;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectOutputStream;
+import java.io.ByteArrayInputStream;
+import java.io.ObjectInputStream;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.util.Scanner;
+import java.util.concurrent.TimeUnit;
 
 public class ClientMain {
     private static final String SERVER_HOST = "localhost";
     private static final int SERVER_PORT = 12345;
-    private static final int RECONNECTION_DELAY_MS = 300;
-    private static final int MAX_RECONNECTION_ATTEMPTS = 3;
+    private static final long RECONNECTION_DELAY_MS = 300;
+    private static final int MAX_RECONNECTION_ATTEMPTS = 5;
+    private static final int BUFFER_SIZE = 8192;
 
     private final Console console = new StandartConsole();
     private final CommandManager commandManager = new CommandManager();
-    private SocketChannel socket;
-    private ObjectOutputStream writer;
-    private ObjectInputStream reader;
+    private SocketChannel socketChannel;
 
     public static void main(String[] args) {
         new ClientMain().run();
@@ -39,7 +45,7 @@ public class ClientMain {
         commandManager.registerCommand(new ServerCommand("insert", "добавляет новый элемент"));
         commandManager.registerCommand(new ServerCommand("update", "обновляет элемент по айди"));
         commandManager.registerCommand(new ServerCommand("remove_key", "удаляет элемент по айди"));
-        commandManager.registerCommand(new ServerCommand("clear", "очищает коллекцию"));
+                commandManager.registerCommand(new ServerCommand("clear", "очищает коллекцию"));
         commandManager.registerCommand(new ServerCommand("replace_if_greater", "замена если больше"));
         commandManager.registerCommand(new ServerCommand("remove_greater_key", "удаляет элементы с айди больше чем"));
         commandManager.registerCommand(new ServerCommand("remove_lower_key", "удаляет элементы с айди меньше чем"));
@@ -72,27 +78,61 @@ public class ClientMain {
     }
 
     private Response sendRequest(Request request) throws IOException, ClassNotFoundException {
-        writer.writeObject(request);
-        writer.flush();
-        return (Response) reader.readObject();
+        if (socketChannel == null || !socketChannel.isConnected()) {
+            throw new IOException("Not connected to the server.");
+        }
+
+        // сериализуем запрос в байты
+        byte[] requestBytes = serialize(request);
+        ByteBuffer buffer = ByteBuffer.wrap(requestBytes);
+        socketChannel.write(buffer);
+        buffer.clear();
+
+        // получаем и читаем ответ
+        ByteBuffer responseBuffer = ByteBuffer.allocate(BUFFER_SIZE);
+        int bytesRead = socketChannel.read(responseBuffer);
+        if (bytesRead == -1) {
+            throw new IOException("Server disconnected.");
+        }
+        responseBuffer.flip();
+        byte[] responseBytes = new byte[responseBuffer.remaining()];
+        responseBuffer.get(responseBytes);
+        Response response = deserialize(responseBytes);
+        return response;
     }
 
     private void connect() throws IOException {
-        socket = SocketChannel.open(new InetSocketAddress(SERVER_HOST, SERVER_PORT));
-        writer = new ObjectOutputStream(socket.socket().getOutputStream());
-        reader = new ObjectInputStream(socket.socket().getInputStream());
-        console.writeln("Connected to server at " + SERVER_HOST + ":" + SERVER_PORT);
+        int attempts = 0;
+        while (attempts < MAX_RECONNECTION_ATTEMPTS) {
+            try {
+                socketChannel = SocketChannel.open();
+                socketChannel.connect(new InetSocketAddress(SERVER_HOST, SERVER_PORT));
+                console.writeln("Connected to server at " + SERVER_HOST + ":" + SERVER_PORT);
+                return; // Успешное подключение, выходим из метода
+            } catch (IOException e) {
+                attempts++;
+                console.writeln("Failed to connect to server (attempt " + attempts + "/" + MAX_RECONNECTION_ATTEMPTS + "): " + e.getMessage());
+                if (attempts >= MAX_RECONNECTION_ATTEMPTS) {
+                    throw new IOException("Failed to connect to server after " + MAX_RECONNECTION_ATTEMPTS + " attempts.", e);
+                }
+                try {
+                    TimeUnit.MILLISECONDS.sleep(RECONNECTION_DELAY_MS);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException("Connection interrupted.", ie);
+                }
+            }
+        }
+        throw new IOException("Failed to connect after max attempts"); //Если дошли сюда и не вышли из цикла - ошибка
     }
 
     private void disconnect() {
         try {
-            if (writer != null) writer.close();
-            if (reader != null) reader.close();
-            if (socket != null) socket.close();
-            socket = null;
-            writer = null;
-            reader = null;
-            console.writeln("Disconnected from server.");
+            if (socketChannel != null) {
+                socketChannel.close();
+                socketChannel = null;
+                console.writeln("Disconnected from server.");
+            }
         } catch (IOException e) {
             console.writeln("Error closing connection: " + e.getMessage());
         }
@@ -101,30 +141,16 @@ public class ClientMain {
     public void run() {
         initializeCommands();
 
-        try (Scanner scanner = new Scanner(System.in);
-             Console console = this.console) {
-
-            int attempts = 0;
-            while (socket == null || !socket.isConnected()) {
+        try (Scanner scanner = new Scanner(System.in)) {
+            while (true) {
                 try {
                     connect();
-                    attempts = 0;
+                    break; // выход из бесконечного цикла при успешном подключении
                 } catch (IOException e) {
-                    attempts++;
-                    console.writeln("Failed to connect to server (attempt " + attempts + "/" + MAX_RECONNECTION_ATTEMPTS + "): " + e.getMessage());
-                    if (attempts >= MAX_RECONNECTION_ATTEMPTS) {
-                        console.writeln("Failed to connect to server after " + MAX_RECONNECTION_ATTEMPTS + " attempts. Exiting.");
-                        return;
-                    }
-                    try {
-                        Thread.sleep(RECONNECTION_DELAY_MS);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        console.writeln("Connection interrupted.");
-                        return;
-                    }
+                    console.writeln(e.getMessage()); // сообщение об ошибке подключения
                 }
             }
+
 
             console.writeln("Type 'help' for command list");
 
@@ -151,43 +177,35 @@ public class ClientMain {
                     if (e.getCause() instanceof IOException) {
                         console.writeln("Connection to server lost. Attempting to reconnect...");
                         disconnect();
-                        attempts = 0;
-                        while (socket == null || !socket.isConnected()) {
-                            try {
-                                connect();
-                                attempts = 0;
-                                break;
-                            } catch (IOException reconnectException) {
-                                attempts++;
-                                console.writeln("Failed to reconnect (attempt " + attempts + "/" + MAX_RECONNECTION_ATTEMPTS + "): " + reconnectException.getMessage());
-                                if (attempts >= MAX_RECONNECTION_ATTEMPTS) {
-                                    console.writeln("Failed to reconnect after " + MAX_RECONNECTION_ATTEMPTS + " attempts. Exiting.");
-                                    return;
-                                }
-                                try {
-                                    Thread.sleep(RECONNECTION_DELAY_MS);
-                                } catch (InterruptedException ie) {
-                                    Thread.currentThread().interrupt();
-                                    console.writeln("Reconnection interrupted.");
-                                    return;
-                                }
-                            }
-                        }
-                        if (socket != null && socket.isConnected()) {
+                        try{
+                            connect();
                             console.writeln("Reconnected to server. Please re-enter the last command.");
                             continue;
-                        } else {
-                            console.writeln("Failed to reconnect. Closing client.");
+                        } catch (IOException ex){
+                            console.writeln(ex.getMessage());
                             break;
                         }
+
                     }
                 }
             }
-        } catch (Exception e) {
-            console.writeln("Fatal error: " + e.getMessage());
         } finally {
             disconnect();
             console.writeln("Client stopped");
+        }
+    }
+    private static byte[] serialize(Object obj) throws IOException {
+        try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
+             ObjectOutputStream oos = new ObjectOutputStream(bos)) {
+            oos.writeObject(obj);
+            return bos.toByteArray();
+        }
+    }
+
+    private static Response deserialize(byte[] data) throws IOException, ClassNotFoundException {
+        try (ByteArrayInputStream bis = new ByteArrayInputStream(data);
+             ObjectInputStream ois = new ObjectInputStream(bis)) {
+            return (Response) ois.readObject();
         }
     }
 }

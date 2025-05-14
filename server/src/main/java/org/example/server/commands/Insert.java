@@ -18,7 +18,7 @@ public class Insert extends Command {
     public Response execute(Request request) {
         Object[] args = (Object[]) request.getArguments();
         if (args == null || args.length < 9 || args.length > 10) {
-            return new Response("Неверное количество аргументов для команды 'insert'. Ожидается: название, координата X, координата Y, площадь, население, высота, код_климата, код_правительства, код_уровня_жизни [, имя_губернатора]");
+            return new Response("эй, полегче! аргументов не хватает или ты лишнего накидал: название, x, y, площадь, население, высота, код_климата, код_правительства, код_уровня_жизни [, имя_губернатора]");
         }
 
         try {
@@ -31,19 +31,33 @@ public class Insert extends Command {
 
             int climateCode = Integer.parseInt((String) args[6]);
             if (climateCode < 1 || climateCode > Climate.values().length) {
-                return new Response("Неверный код климата.");
+                return new Response("ты с климатом ошибся, коды от 1 до " + Climate.values().length + ":\n" +
+                        "    1 - RAIN_FOREST,\n" +
+                        "    2 - HUMIDSUBTROPICAL,\n" +
+                        "    3 - HUMIDCONTINENTAL,\n" +
+                        "    4 - TUNDRA,\n" +
+                        "    5 - POLAR_ICECAP");
             }
             Climate climate = Climate.values()[climateCode - 1];
 
             int governmentCode = Integer.parseInt((String) args[7]);
             if (governmentCode < 1 || governmentCode > Government.values().length) {
-                return new Response("Неверный код правительства.");
+                return new Response("правительство тоже не то, коды от 1 до " + Government.values().length + ":\n" +
+                        "    1 - DESPOTISM,\n" +
+                        "    2 - NOOCRACY,\n" +
+                        "    3 - TECHNOCRACY,\n" +
+                        "    4 - TIMOCRACY");
             }
             Government government = Government.values()[governmentCode - 1];
 
             int standardOfLivingCode = Integer.parseInt((String) args[8]);
             if (standardOfLivingCode < 1 || standardOfLivingCode > StandardOfLiving.values().length) {
-                return new Response("Неверный код уровня жизни.");
+                return new Response("ну и уровень жизни у тебя... коды от 1 до " + StandardOfLiving.values().length + ":\n" +
+                        "    1 - ULTRA_HIGH,\n" +
+                        "    2 - VERY_HIGH,\n" +
+                        "    3 - LOW,\n" +
+                        "    4 - VERY_LOW,\n" +
+                        "    5 - ULTRA_LOW");
             }
             StandardOfLiving standardOfLiving = StandardOfLiving.values()[standardOfLivingCode - 1];
 
@@ -65,20 +79,20 @@ public class Insert extends Command {
 
             newCity.validate();
 
-            collectionManager.addElement(null, newCity); // Передаем null в качестве ключа, чтобы CollectionManager сгенерировал его
+            collectionManager.addElement(null, newCity); // Передаем null в качестве ключа
 
-            return new Response("Город успешно добавлен с ID: " + newCity.getId());
+            return new Response("город успешно добавлен с id: " + newCity.getId());
 
         } catch (NumberFormatException e) {
-            return new Response("Неверный формат числового аргумента.");
+            return new Response("ты что-то не то с числами намудрил");
         } catch (IllegalArgumentException e) {
-            return new Response("Неверный формат аргумента.");
+            return new Response("аргументы какие-то кривые");
         } catch (ValidationException e) {
-            return new Response("Ошибка валидации города: " + e.getMessage());
+            return new Response("город у тебя какой-то неправильный: " + e.getMessage());
         } catch (IndexOutOfBoundsException e) {
-            return new Response("Неверный код для климата, правительства или уровня жизни.");
+            return new Response("ты с кодами совсем запутался");
         } catch (Exception e) {
-            return new Response("Ошибка при выполнении команды 'insert': " + e.getMessage());
+            return new Response("ой, что-то пошло не так при добавлении города: " + e.getMessage());
         }
     }
 }

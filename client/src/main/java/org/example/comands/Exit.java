@@ -8,13 +8,13 @@ public class Exit extends Command {
     private final Console console;
 
     public Exit(Console console) {
-        super("exit", "exit the application");
+        super("exit", "выход с клиента");
         this.console = console;
     }
 
     @Override
     public void execute(String[] args) throws CommandExecutionError {
-        console.writeln("Closing application...");
+        console.writeln("приложуха закрывается...");
         System.exit(0);
     }
 }

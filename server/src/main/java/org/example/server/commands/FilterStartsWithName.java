@@ -19,14 +19,14 @@ public class FilterStartsWithName extends Command {
     public Response execute(Request request) {
         String prefix = (String) request.getArguments();
         if (prefix == null || prefix.length() != 1) {
-            return new Response("Неверное количество аргументов для команды 'filter_starts_with_name'. Ожидается один аргумент: префикс.");
+            return new Response("ты что, одну букву ввести не можешь? нужен один аргумент: префикс");
         }
         List<City> filteredCities = collectionManager.filterStartsWithName(prefix);
         if (filteredCities.isEmpty()) {
-            return new Response("Нет городов, название которых начинается с '" + prefix + "'.");
+            return new Response("нет тут городов, которые начинаются на '" + prefix + "'");
         } else {
             String data = filteredCities.stream().map(City::toString).collect(Collectors.joining("\n"));
-            return new Response("Города, название которых начинается с '" + prefix + "':\n" + data, filteredCities);
+            return new Response("города, которые начинаются на '" + prefix + "':\n" + data, filteredCities);
         }
     }
 }

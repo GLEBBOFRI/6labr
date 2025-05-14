@@ -16,9 +16,9 @@ public class Clear extends Command {
     public Response execute(Request request) {
         try {
             collectionManager.clearCollection();
-            return new Response("Коллекция успешно очищена.");
+            return new Response("коллекция успешно очищена");
         } catch (Exception e) {
-            return new Response("Ошибка при очистке коллекции: " + e.getMessage());
+            return new Response("ой, ну ты и рукожоп, не смог коллекцию очистить: " + e.getMessage());
         }
     }
 }

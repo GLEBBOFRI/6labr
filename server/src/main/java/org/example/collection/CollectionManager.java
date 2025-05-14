@@ -7,12 +7,15 @@ import org.example.utils.IdGenerator;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 public class CollectionManager {
     private final Hashtable<Integer, City> collection = new Hashtable<>();
     private final IdGenerator idGenerator = new IdGenerator();
     private String saveFilePath;
+    private final ExecutorService saveExecutor = Executors.newSingleThreadExecutor(); // Один поток для сохранения
 
     public void loadCollection(String filePath) throws IOException, ValidationException {
         this.saveFilePath = filePath;
@@ -26,13 +29,23 @@ public class CollectionManager {
             collection.put(city.getId(), city);
             idGenerator.setNextId(city.getId() + 1);
         }
-        autoSave();
+        asyncSave();
     }
 
-    private void autoSave() throws IOException {
+    private void asyncSave() {
         if (saveFilePath != null) {
-            DumpManager.CollectionToJsonFile(new ArrayList<>(collection.values()), saveFilePath);
+            saveExecutor.submit(() -> {
+                try {
+                    DumpManager.CollectionToJsonFile(new ArrayList<>(collection.values()), saveFilePath);
+                } catch (IOException e) {
+                    System.err.println("ошибка при асинхронном сохранении: " + e.getMessage());
+                }
+            });
         }
+    }
+
+    public void shutdownSaveExecutor() {
+        saveExecutor.shutdown();
     }
 
     public void addElement(Integer key, City city) throws ValidationException, IOException {
@@ -43,7 +56,7 @@ public class CollectionManager {
 
         int actualKey = (key != null) ? key : newId;
         collection.put(actualKey, city);
-        autoSave();
+        asyncSave(); 
     }
 
     public boolean update(Integer key, City newCity) throws ValidationException, IOException {
@@ -53,16 +66,15 @@ public class CollectionManager {
 
         City oldCity = collection.get(key);
         newCity.setId(oldCity.getId());
-        //newCity.validate();
         collection.put(key, newCity);
-        autoSave();
+        asyncSave(); 
         return true;
     }
 
     public boolean remove(Integer key) throws IOException {
         boolean removed = collection.remove(key) != null;
         if (removed) {
-            autoSave();
+            asyncSave(); 
         }
         return removed;
     }
@@ -72,7 +84,7 @@ public class CollectionManager {
         collection.keySet().removeIf(k -> k > key);
         int removed = initialSize - collection.size();
         if (removed > 0) {
-            autoSave();
+            asyncSave(); 
         }
         return removed;
     }
@@ -82,7 +94,7 @@ public class CollectionManager {
         collection.keySet().removeIf(k -> k < key);
         int removed = initialSize - collection.size();
         if (removed > 0) {
-            autoSave();
+            asyncSave(); 
         }
         return removed;
     }
@@ -92,14 +104,14 @@ public class CollectionManager {
         collection.values().removeIf(city -> standard.equals(city.getStandardOfLiving()));
         int removed = initialSize - collection.size();
         if (removed > 0) {
-            autoSave();
+            asyncSave(); 
         }
         return removed;
     }
 
     public void clearCollection() throws IOException {
         collection.clear();
-        autoSave();
+        asyncSave(); 
     }
 
     public boolean replaceIfGreater(Integer key, City newCity) throws ValidationException, IOException {
@@ -112,7 +124,7 @@ public class CollectionManager {
             newCity.setId(oldCity.getId());
             newCity.validate();
             collection.put(key, newCity);
-            autoSave();
+            asyncSave(); 
             return true;
         }
         return false;
@@ -120,10 +132,10 @@ public class CollectionManager {
 
     public String getCollectionInfo() {
         return String.format(
-                "Type: %s\nSize: %d\nSave file: %s",
+                "тип: %s\nразмер: %d\nфайл сохранения: %s",
                 collection.getClass().getName(),
                 collection.size(),
-                saveFilePath != null ? saveFilePath : "not specified"
+                saveFilePath != null ? saveFilePath : "не указан"
         );
     }
 

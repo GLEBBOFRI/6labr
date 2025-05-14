@@ -8,7 +8,7 @@ public class Info extends Command {
     private final CollectionManager collectionManager;
 
     public Info(CollectionManager collectionManager) {
-        super("info", "show collection info");
+        super("info", "вывести в стандартный поток вывода информацию о коллекции");
         this.collectionManager = collectionManager;
     }
 

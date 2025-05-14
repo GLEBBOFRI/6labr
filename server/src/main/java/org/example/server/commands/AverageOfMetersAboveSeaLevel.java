@@ -15,6 +15,6 @@ public class AverageOfMetersAboveSeaLevel extends Command {
     @Override
     public Response execute(Request request) {
         double average = collectionManager.getAverageMetersAboveSeaLevel();
-        return new Response("Среднее значение высоты над уровнем моря: " + average);
+        return new Response("среднее значение высоты над уровнем моря: " + average);
     }
 }
